@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Open.Nat.Tests
 {
 	[TestClass]
+	[TestCategory("IPv6")]
 	public class InternetProtocolV6Tests
 	{
 		private UpnpMockServer _server;
