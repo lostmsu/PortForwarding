@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -44,7 +45,7 @@ namespace Lost.PortForwarding
 		public async Task<NatDevice> DiscoverDeviceAsync()
 		{
 			var cts = new CancellationTokenSource(3 * 1000);
-			return await DiscoverDeviceAsync(PortMapper.Pmp | PortMapper.Upnp, cts.Token);
+			return await DiscoverDeviceAsync(PortMapper.Pmp | PortMapper.Upnp, cts.Token).ConfigureAwait(false);
 		}
 
 		/// <summary>
@@ -55,7 +56,7 @@ namespace Lost.PortForwarding
 		/// It allows to specify the NAT type to discover as well as the cancellation token in order.
 		/// </remarks>
 		/// <param name="portMapper">Port mapper protocol; Upnp, Pmp or both</param>
-		/// <param name="cancellationTokenSource">Cancellation token source for cancelling the discovery process</param>
+		/// <param name="cancellation">Cancellation token for cancelling the discovery process</param>
 		/// <returns>A NAT device</returns>
 		/// <exception cref="NatDeviceNotFoundException">when no NAT found before cancellation</exception>
 		public async Task<NatDevice> DiscoverDeviceAsync(PortMapper portMapper, CancellationToken cancellation)
@@ -80,7 +81,7 @@ namespace Lost.PortForwarding
 		/// Discovers and returns all NAT devices for the specified type. If no NAT device is found it returns an empty enumerable
 		/// </summary>
 		/// <param name="portMapper">Port mapper protocol; Upnp, Pmp or both</param>
-		/// <param name="cancellationTokenSource">Cancellation token source for cancelling the discovery process</param>
+		/// <param name="cancellation">Cancellation token for cancelling the discovery process</param>
 		/// <returns>All found NAT devices</returns>
 		public async Task<IEnumerable<NatDevice>> DiscoverDevicesAsync(PortMapper portMapper, CancellationToken cancellation)
 		{
@@ -108,10 +109,21 @@ namespace Lost.PortForwarding
 				searcherTasks.Add(pmpSearcher.Search(cts.Token));
 			}
 
-			await Task.WhenAll(searcherTasks).ConfigureAwait(false);
+			try
+			{
+				await Task.WhenAll(searcherTasks).ConfigureAwait(false);
+			}
+			catch (TaskCanceledException) when (cts.IsCancellationRequested)
+			{
+
+			}
+			catch (Exception e)
+			{
+				TraceSource.LogWarn("Discovery issue: {0}", e.Message);
+			}
 			TraceSource.LogInfo("Stop Discovery");
 			
-			var devices = searcherTasks.SelectMany(x => x.Result);
+			var devices = searcherTasks.SelectMany(x => x.Status == TaskStatus.RanToCompletion ? x.Result : []);
 			foreach (var device in devices)
 			{
 				var key = device.ToString();
