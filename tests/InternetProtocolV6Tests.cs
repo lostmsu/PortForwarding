@@ -64,7 +64,7 @@ namespace Lost.PortForwarding.Tests
 
 			var nat = new NatDiscoverer();
 			var cts = new CancellationTokenSource(5000);
-			var device = await nat.DiscoverDeviceAsync(PortMapper.Upnp, cts);
+			var device = await nat.DiscoverDeviceAsync(PortMapper.Upnp, cts.Token);
 			Assert.IsNotNull(device);
 
 			var ip = await device.GetExternalIPAsync();

@@ -44,7 +44,7 @@ namespace Lost.PortForwarding
 		public async Task<NatDevice> DiscoverDeviceAsync()
 		{
 			var cts = new CancellationTokenSource(3 * 1000);
-			return await DiscoverDeviceAsync(PortMapper.Pmp | PortMapper.Upnp, cts);
+			return await DiscoverDeviceAsync(PortMapper.Pmp | PortMapper.Upnp, cts.Token);
 		}
 
 		/// <summary>
@@ -58,12 +58,12 @@ namespace Lost.PortForwarding
 		/// <param name="cancellationTokenSource">Cancellation token source for cancelling the discovery process</param>
 		/// <returns>A NAT device</returns>
 		/// <exception cref="NatDeviceNotFoundException">when no NAT found before cancellation</exception>
-		public async Task<NatDevice> DiscoverDeviceAsync(PortMapper portMapper, CancellationTokenSource cancellationTokenSource)
+		public async Task<NatDevice> DiscoverDeviceAsync(PortMapper portMapper, CancellationToken cancellation)
 		{
 			Guard.IsTrue(portMapper.HasFlag(PortMapper.Upnp) || portMapper.HasFlag(PortMapper.Pmp), "portMapper");
-			Guard.IsNotNull(cancellationTokenSource, "cancellationTokenSource");
 
-			var devices = await DiscoverAsync(portMapper, true, cancellationTokenSource);
+			var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+			var devices = await DiscoverAsync(portMapper, true, cancel).ConfigureAwait(false);
 			var device = devices.FirstOrDefault();
 			if(device==null)
 			{
@@ -82,12 +82,12 @@ namespace Lost.PortForwarding
 		/// <param name="portMapper">Port mapper protocol; Upnp, Pmp or both</param>
 		/// <param name="cancellationTokenSource">Cancellation token source for cancelling the discovery process</param>
 		/// <returns>All found NAT devices</returns>
-		public async Task<IEnumerable<NatDevice>> DiscoverDevicesAsync(PortMapper portMapper, CancellationTokenSource cancellationTokenSource)
+		public async Task<IEnumerable<NatDevice>> DiscoverDevicesAsync(PortMapper portMapper, CancellationToken cancellation)
 		{
 			Guard.IsTrue(portMapper.HasFlag(PortMapper.Upnp) || portMapper.HasFlag(PortMapper.Pmp), "portMapper");
-			Guard.IsNotNull(cancellationTokenSource, "cancellationTokenSource");
 
-			var devices = await DiscoverAsync(portMapper, false, cancellationTokenSource);
+			var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+			var devices = await DiscoverAsync(portMapper, false, cancel).ConfigureAwait(false);
 			return devices.ToArray();
 		}
 
