@@ -47,59 +47,6 @@ namespace Lost.PortForwarding
 			_serviceType = serviceType;
 		}
 
-#if NET35
-		public Task<XmlDocument> InvokeAsync(string operationName, IDictionary<string, object> args)
-		{
-			NatDiscoverer.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "SOAPACTION: **{0}** url:{1}", operationName,
-												 _url);
-			byte[] messageBody = BuildMessageBody(operationName, args);
-			HttpWebRequest request = BuildHttpWebRequest(operationName, messageBody);
-
-			Task<WebResponse> responseTask;
-			if (messageBody.Length > 0)
-			{
-				Stream requestStream = null;
-				responseTask = Task.Factory.FromAsync<Stream>(request.BeginGetRequestStream, request.EndGetRequestStream, null)
-					.ContinueWith(requestSteamTask =>
-					{
-						requestStream = requestSteamTask.Result;
-						return Task.Factory.FromAsync<byte[], int, int>(requestStream.BeginWrite,
-							requestStream.EndWrite, messageBody, 0, messageBody.Length, null);
-					})
-					.Unwrap()
-					.ContinueWith(streamWriteTask =>
-					{
-						requestStream.Close();
-						return GetWebResponse(request);
-					})
-					.Unwrap();
-			}
-			else
-			{
-				responseTask = GetWebResponse(request);
-			}
-
-			return responseTask.ContinueWith(task =>
-			{
-				using (WebResponse response = task.Result)
-				{
-					var stream = response.GetResponseStream();
-					var contentLength = response.ContentLength;
-
-					var reader = new StreamReader(stream, Encoding.UTF8);
-
-					var responseBody = contentLength != -1
-						? reader.ReadAsMany((int)contentLength)
-						: reader.ReadToEnd();
-
-					var responseXml = GetXmlDocument(responseBody.Trim());
-
-					response.Close();
-					return responseXml;
-				}
-			});
-		}
-#else
 		public async Task<XmlDocument> InvokeAsync(string operationName, IDictionary<string, object> args)
 		{
 			NatDiscoverer.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "SOAPACTION: **{0}** url:{1}", operationName,
@@ -132,43 +79,7 @@ namespace Lost.PortForwarding
 				return responseXml;
 			}
 		}
-#endif
 
-#if NET35
-		private static Task<WebResponse> GetWebResponse(WebRequest request)
-		{
-			return Task.Factory
-				.FromAsync<WebResponse>(request.BeginGetResponse, request.EndGetResponse, null)
-				.ContinueWith(task =>
-				{
-					WebResponse response;
-					if (!task.IsFaulted)
-					{
-						response = task.Result;
-					}
-					else
-					{
-						WebException ex = task.Exception.InnerException as WebException;
-						if (ex == null)
-						{
-							throw task.Exception;
-						}
-
-						NatDiscoverer.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "WebException status: {0}", ex.Status);
-
-						// Even if the request "failed" we need to continue reading the response from the router
-						response = ex.Response as HttpWebResponse;
-
-						if (response == null)
-						{
-							throw task.Exception;
-						}
-					}
-
-					return response;
-				});
-		}
-#else
 		private static async Task<WebResponse> GetWebResponse(WebRequest request)
 		{
 			WebResponse response;
@@ -188,15 +99,10 @@ namespace Lost.PortForwarding
 			}
 			return response;
 		}
-#endif
 
 		private HttpWebRequest BuildHttpWebRequest(string operationName, byte[] messageBody)
 		{
-#if NET35
-			var request = (HttpWebRequest)WebRequest.Create(_url);
-#else
 			var request = WebRequest.CreateHttp(_url);
-#endif
 			request.KeepAlive = false;
 			request.Method = "POST";
 			request.ContentType = "text/xml; charset=\"utf-8\"";

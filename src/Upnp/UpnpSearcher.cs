@@ -231,11 +231,7 @@ namespace Lost.PortForwarding
 			WebResponse response = null;
 			try
 			{
-#if NET35
-				var request = WebRequest.Create(location);
-#else
 				var request = WebRequest.CreateHttp(location);
-#endif
 				request.Headers.Add("ACCEPT-LANGUAGE", "en");
 				request.Method = "GET";
 

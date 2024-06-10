@@ -58,16 +58,7 @@ namespace Lost.PortForwarding.Tests
 		private static void WhenRequestService(HttpListenerContext context)
 		{
 			var responseBytes = File.OpenRead("..\\..\\Responses\\ServiceDescription.txt");
-#if NET35
-			var buffer = new byte[1024];
-			int count;
-			while ((count = responseBytes.Read(buffer, 0, buffer.Length)) != 0)
-			{
-				context.Response.OutputStream.Write(buffer, 0, count);
-			}
-#else
 			responseBytes.CopyTo(context.Response.OutputStream);
-#endif
 			context.Response.OutputStream.Flush();
 
 			context.Response.Status(200, "OK");
@@ -94,11 +85,7 @@ namespace Lost.PortForwarding.Tests
 
 		private void StartAnnouncer()
 		{
-#if NET35
-			Task.Factory.StartNew(
-#else
 			Task.Run(
-#endif
 				() =>{
 				var remoteIPEndPoint = new IPEndPoint(IPAddress.Any, 0);
 				using (var udpClient = new UdpClient(1900))
@@ -137,11 +124,7 @@ namespace Lost.PortForwarding.Tests
 		private void StartServer()
 		{
 			_listener.Start();
-#if NET35
-			Task.Factory.StartNew(
-#else
 			Task.Run(
-#endif
 			() => {
 				while (true)
 				{

@@ -31,11 +31,7 @@ namespace Lost.PortForwarding.Tests
 		}
 
 		[TestMethod]
-#if NET35
-		public void Connect()
-#else
 		public async Task Connect()
-#endif
 		{
 			_server.WhenDiscoveryRequest = () =>
 					  "HTTP/1.1 200 OK\r\n"
@@ -67,33 +63,12 @@ namespace Lost.PortForwarding.Tests
 			};
 
 			var nat = new NatDiscoverer();
-#if NET35
-			var cts = new CancellationTokenSource();
-			cts.CancelAfter(5000);
-
-			NatDevice device =null;
-			nat.DiscoverDeviceAsync(PortMapper.Upnp, cts)
-			.ContinueWith(tt =>
-			{
-				device = tt.Result;
-				Assert.IsNotNull(device);
-			});
-
-			device.GetExternalIPAsync()
-			.ContinueWith(tt =>
-			{
-				var ip = tt.Result;
-				Assert.AreEqual(IPAddress.Parse("FE80::0202:B3FF:FE1E:8329"), ip);
-			});
-
-#else
 			var cts = new CancellationTokenSource(5000);
 			var device = await nat.DiscoverDeviceAsync(PortMapper.Upnp, cts);
 			Assert.IsNotNull(device);
 
 			var ip = await device.GetExternalIPAsync();
 			Assert.AreEqual(IPAddress.Parse("FE80::0202:B3FF:FE1E:8329"), ip);
-#endif
 		}
 	}
 }

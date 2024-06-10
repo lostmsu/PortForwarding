@@ -35,108 +35,6 @@ namespace Lost.PortForwarding.ConsoleTest
 {
 	class NatTest
 	{
-#if NET35
-		public static void Main(string[] args)
-		{
-			var nat = new NatDiscoverer();
-			var cts = new CancellationTokenSource();
-			cts.CancelAfter(5000);
-
-			NatDevice device = null;
-			var sb = new StringBuilder();
-			IPAddress ip = null;
-			var t = nat.DiscoverDeviceAsync(PortMapper.Pmp, cts);
-			t.ContinueWith(tt =>
-			{
-				device = tt.Result;
-				device.GetExternalIPAsync()
-					.ContinueWith(task =>
-					{
-						ip = task.Result;
-						sb.AppendFormat("\nYour IP: {0}", ip);
-						return device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1600, 1700, "Lost.PortForwarding (temporary)"));
-					})
-					.Unwrap()
-					.ContinueWith(task =>
-					{
-						return device.CreatePortMapAsync(
-							new Mapping(Protocol.Tcp, 1601, 1701, "Lost.PortForwarding (Session lifetime)"));
-					})
-					.Unwrap()
-					.ContinueWith(task =>
-					{
-						return device.CreatePortMapAsync(
-							new Mapping(Protocol.Tcp, 1602, 1702, 0, "Lost.PortForwarding (Permanent lifetime)"));
-					})
-					.Unwrap()
-					.ContinueWith(task =>
-					{
-						return device.CreatePortMapAsync(
-							new Mapping(Protocol.Tcp, 1603, 1703, 20, "Lost.PortForwarding (Manual lifetime)"));
-					})
-					.Unwrap()
-					.ContinueWith(task =>
-					{
-						sb.AppendFormat("\nAdded mapping: {0}:1700 -> 127.0.0.1:1600\n", ip);
-						sb.AppendFormat(
-							"\n+------+-------------------------------+--------------------------------+------------------------------------+-------------------------+");
-						sb.AppendFormat("\n| PROT | PUBLIC (Reacheable)		   | PRIVATE (Your computer)		| Descriptopn						|						 |");
-						sb.AppendFormat(
-							"\n+------+----------------------+--------+-----------------------+--------+------------------------------------+-------------------------+");
-						sb.AppendFormat("\n|	  | IP Address		   | Port   | IP Address			| Port   |									| Expires				 |");
-						sb.AppendFormat(
-							"\n+------+----------------------+--------+-----------------------+--------+------------------------------------+-------------------------+");
-						return device.GetAllMappingsAsync();
-					})
-					.Unwrap()
-					.ContinueWith(task =>
-					{
-						foreach (var mapping in task.Result)
-						{
-							sb.AppendFormat("\n|  {5} | {0,-20} | {1,6} | {2,-21} | {3,6} | {4,-35}|{6,25}|",
-								ip, mapping.PublicPort, mapping.PrivateIP, mapping.PrivatePort, mapping.Description,
-								mapping.Protocol == Protocol.Tcp ? "TCP" : "UDP", mapping.Expiration.ToLocalTime());
-						}
-						sb.AppendFormat(
-							"\n+------+----------------------+--------+-----------------------+--------+------------------------------------+-------------------------+");
-						sb.AppendFormat("\n[Removing TCP mapping] {0}:1700 -> 127.0.0.1:1600", ip);
-						return device.DeletePortMapAsync(new Mapping(Protocol.Tcp, 1600, 1700));
-					})
-					.Unwrap()
-					.ContinueWith(task =>
-					{
-						sb.AppendFormat("\n[Done]");
-						Console.WriteLine(sb.ToString());
-						Console.WriteLine("");
-						Console.WriteLine("Socket listening on port 1602. Remember, it is mapped to external port 1702!!!");
-						Console.WriteLine("Test it with http://www.canyouseeme.org/ online tool");
-
-						var endPoint = new IPEndPoint(IPAddress.Any, 1602);
-						var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-						socket.Bind(endPoint);
-						socket.Listen(4);
-
-						socket.Close();
-						Console.WriteLine("Press any key to exit...");
-					});
-			}, TaskContinuationOptions.OnlyOnRanToCompletion);
-
-			try
-			{
-				t.Wait();
-			}
-			catch (AggregateException e)
-			{
-				if (e.InnerException is NatDeviceNotFoundException)
-				{
-					Console.WriteLine("Not found");
-					Console.WriteLine("Press any key to exit...");
-				}
-			}
-			Console.ReadKey();
-		}
-
-#else
 		public static void Main(string[] args)
 		{
 			var t = Task.Run(async () =>
@@ -199,6 +97,5 @@ namespace Lost.PortForwarding.ConsoleTest
 			}
 			Console.ReadKey();
 		}
-#endif
 	}
 }
