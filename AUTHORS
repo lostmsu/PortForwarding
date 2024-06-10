@@ -1,13 +1,16 @@
-Open.Nat is a Mono.Nat fork
+Lost.PortForwarding is a Mono.Nat and Open.NAT fork
 
 = Mono.Nat authors 
 Alan McGovern <alan.mcgovern@gmail.com>
 Ben Motmans <ben.motmans@gmail.com>
 
-= Open.Nat author
+= Open.NAT author
 Lucas Ontivero <lucasontivero@gmail.com>
 
-= Open.Nat contributors
+= Open.NAT contributors
 Michaël Catanzariti <catanzariti@yahoo.com>
 Scott Richmond <s.t.richmond@gmail.com>
 Bart van der Werf <bluelive@gmail.com>
+
+= PortForwarding authors
+Victor Nova <lostfreeman@gmail.com>

@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <OutputType>Library</OutputType>
+    <StartupObject />
+
+    <!-- package -->
+    <PackageId>Lost.PortForwarding</PackageId>
+    <Authors>Alan McGovern, Ben Motmans, Lucas Ontivero</Authors>
+    <Product>Lost.PortForwarding</Product>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>Networking;NAT TRAVERSAL;UPNP;PMP;PORT FORWARD;PORT FORWARDING;PORT MAPPING</PackageTags>
+    <PackageReleaseNotes></PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>.NET Library for port forwarding/port mapping</Description>
+    <NeutralLanguage>en</NeutralLanguage>
+    <Copyright>Copyright Alan McGovern, Ben Motmans, Lucas Ontivero ©  2006-2014</Copyright>
+    <Version>0</Version>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RepositoryUrl>https://github.com/lostmsu/PortForwarding</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Upnp\Messages\Responses\AddPortMappingResponseMessage.cs" />
+    <Compile Remove="Upnp\Messages\Responses\DeletePortMappingResponseMessage.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="PortForwarding.Tests" />
+  </ItemGroup>
+</Project>

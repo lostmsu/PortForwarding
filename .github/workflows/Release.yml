@@ -24,15 +24,15 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Deps
-        run: dotnet restore Open.Nat.UnitTests/Open.Nat.Tests.csproj
+        run: dotnet restore
 
       - name: Test
         # skip IPv6 tests: https://github.com/actions/runner-images/issues/668
-        run: dotnet test Open.Nat.UnitTests/Open.Nat.Tests.csproj --no-restore --verbosity normal --filter TestCategory!=IPv6
+        run: dotnet test --no-restore --verbosity normal --filter TestCategory!=IPv6
 
       - name: Pack
         # skip signing until key added to GitHub secrets
-        run: dotnet pack /p:SignAssembly=false /p:Version=${{ github.ref_name }} Open.Nat/Open.Nat.csproj --no-restore
+        run: dotnet pack /p:Version=${{ github.ref_name }} --no-restore
 
       - name: Publish
         run: dotnet nuget push **.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}

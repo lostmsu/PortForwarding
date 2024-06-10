@@ -3,7 +3,7 @@ name: Master
 on:
   push:
     branches:
-      - master
+      - lost
   pull_request:
 
 jobs:
@@ -25,11 +25,11 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Deps
-        run: dotnet restore Open.Nat.UnitTests/Open.Nat.Tests.csproj
+        run: dotnet restore
 
       - name: Build
-        run: dotnet build Open.Nat.UnitTests/Open.Nat.Tests.csproj --configuration Release --no-restore
+        run: dotnet build --configuration Release --no-restore
 
       - name: Test
         # skip IPv6 tests: https://github.com/actions/runner-images/issues/668
-        run: dotnet test Open.Nat.UnitTests/Open.Nat.Tests.csproj --no-restore --verbosity normal --filter TestCategory!=IPv6
+        run: dotnet test --no-restore --verbosity normal --filter TestCategory!=IPv6

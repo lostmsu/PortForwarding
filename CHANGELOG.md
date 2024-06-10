@@ -1,3 +1,6 @@
+### Unreleased
+* droppend .NET 3.5 support
+
 ### Version 2.1.0
 * Fixes [defect #43](https://github.com/lontivero/Open.NAT/issues/43).
 UpnpNatDevice.CreatePortMapAsync does not await retry
@@ -37,7 +40,7 @@ Fixes [defect #20](https://github.com/lontivero/Open.NAT/issues/20). Absolute se
 
 ### Version 1.1.0
 * Fix for SSDP Location header.
-* After this version Open.NAT breaks backward compatibility.
+* After this version Lost.PortForwarding breaks backward compatibility.
 
 ### Version 1.0.19
 * Minor changes previous to v2.
