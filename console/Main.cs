@@ -12,11 +12,16 @@ var t = Task.Run(async () =>
     var sb = new StringBuilder();
     var ip = await device.GetExternalIPAsync();
 
+	foreach (var mapping in await device.GetAllMappingsAsync())
+	{
+		Console.WriteLine(mapping);
+	}
+
     sb.AppendFormat("\nYour IP: {0}", ip);
     await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1600, 1700, "Lost.PortForwarding (temporary)"));
     await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1601, 1701, "Lost.PortForwarding (Session lifetime)"));
-    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1602, 1702, 0, "Lost.PortForwarding (Permanent lifetime)"));
-    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1603, 1703, 20, "Lost.PortForwarding (Manual lifetime)"));
+    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1602, 1702, MappingLifetime.Permanent, "Lost.PortForwarding (Permanent lifetime)"));
+    await device.CreatePortMapAsync(new Mapping(Protocol.Tcp, 1603, 1703, new(TimeSpan.FromSeconds(20)), "Lost.PortForwarding (Manual lifetime)"));
     sb.AppendFormat("\nAdded mapping: {0}:1700 -> 127.0.0.1:1600\n", ip);
     sb.AppendFormat(
         "\n+------+-------------------------------+--------------------------------+------------------------------------+-------------------------+");

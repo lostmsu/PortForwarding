@@ -108,7 +108,7 @@ namespace Lost.PortForwarding
 				searcherTasks.Add(pmpSearcher.Search(cts.Token));
 			}
 
-			await Task.WhenAll(searcherTasks);
+			await Task.WhenAll(searcherTasks).ConfigureAwait(false);
 			TraceSource.LogInfo("Stop Discovery");
 			
 			var devices = searcherTasks.SelectMany(x => x.Result);
@@ -156,7 +156,7 @@ namespace Lost.PortForwarding
 			{
 				foreach (var device in Devices.Values)
 				{
-					await device.RenewMappings();
+					await device.RenewMappings().ConfigureAwait(false);
 				}
 			});
 		}

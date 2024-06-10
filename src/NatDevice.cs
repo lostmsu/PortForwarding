@@ -159,7 +159,7 @@ namespace Lost.PortForwarding
 		internal void ReleaseSessionMappings()
 		{
 			var mappings = from m in _openedMapping
-						   where m.LifetimeType == MappingLifetime.Session
+						   where m.LifetimeType == MappingLifetimeType.Session
 						   select m;
 
 			ReleaseMapping(mappings);
@@ -178,7 +178,7 @@ namespace Lost.PortForwarding
 		private Task RenewMapping(Mapping mapping)
 		{
 			var renewMapping = new Mapping(mapping);
-			renewMapping.Expiration = DateTime.UtcNow.AddSeconds(mapping.Lifetime);
+			renewMapping.Lifetime = mapping.Lifetime;
 
 			NatDiscoverer.TraceSource.LogInfo("Renewing mapping {0}", renewMapping);
 			return CreatePortMapAsync(renewMapping)

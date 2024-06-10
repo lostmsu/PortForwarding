@@ -91,9 +91,9 @@ namespace Lost.PortForwarding
 				{
 					case UpnpConstants.OnlyPermanentLeasesSupported:
 						NatDiscoverer.TraceSource.LogWarn("Only Permanent Leases Supported - There is no warranty it will be closed");
-						mapping.Lifetime = 0;
+						mapping.Lifetime = MappingLifetime.Permanent;
 						// We create the mapping anyway. It must be released on shutdown.
-						mapping.LifetimeType = MappingLifetime.ForcedSession;
+						mapping.IsForcedSession = true;
 						retry = true;
 						break;
 					case UpnpConstants.SamePortValuesRequired:
@@ -172,7 +172,7 @@ namespace Lost.PortForwarding
 						, internalClientIp
 						, responseMessage.InternalPort
 						, responseMessage.ExternalPort
-						, responseMessage.LeaseDuration
+						, new(responseMessage.LeaseDuration)
 						, responseMessage.PortMappingDescription);
 					mappings.Add(mapping);
 				}
@@ -219,7 +219,7 @@ namespace Lost.PortForwarding
 					, IPAddress.Parse(messageResponse.InternalClient)
 					, messageResponse.InternalPort
 					, publicPort // messageResponse.ExternalPort is short.MaxValue
-					, messageResponse.LeaseDuration
+					, new(messageResponse.LeaseDuration)
 					, messageResponse.PortMappingDescription);
 			}
 			catch (MappingException e)

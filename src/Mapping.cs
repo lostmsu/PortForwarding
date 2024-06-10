@@ -33,12 +33,11 @@ using System.Net;
 
 namespace Lost.PortForwarding
 {
-	enum MappingLifetime
+	enum MappingLifetimeType
 	{
 		Permanent,
 		Session,
-		Manual,
-		ForcedSession
+		Manual
 	}
 
 	/// <summary>
@@ -47,8 +46,9 @@ namespace Lost.PortForwarding
 	public class Mapping
 	{
 		private DateTime _expiration;
-		private int _lifetime;
-		internal MappingLifetime LifetimeType { get; set; }
+		private MappingLifetime _lifetime;
+		internal MappingLifetimeType LifetimeType => _lifetime.Type;
+		internal bool IsForcedSession { get; set; }
 	
 
 		/// <summary>
@@ -67,8 +67,8 @@ namespace Lost.PortForwarding
 		public Protocol Protocol { get; internal set; }
 		/// <summary>
 		/// The PrivatePort parameter specifies the port on a client machine to which all traffic 
-		/// coming in on <see cref="#PublicPort">PublicPort</see> for the protocol specified by 
-		/// <see cref="#Protocol">Protocol</see> should be forwarded to.
+		/// coming in on <see cref="PublicPort">PublicPort</see> for the protocol specified by 
+		/// <see cref="Protocol">Protocol</see> should be forwarded to.
 		/// </summary>
 		/// <see cref="Protocol">Protocol enum</see>
 		public int PrivatePort { get; internal set; }
@@ -83,7 +83,7 @@ namespace Lost.PortForwarding
 		/// </summary>
 		public int PublicPort { get; internal set; }
 		/// <summary>
-		/// Gets the lifetime in seconds. The Lifetime parameter tells the router how long the portmapping should be active. 
+		/// Gets the mapping lifetime in seconds. The Lifetime parameter tells the router how long the portmapping should be active. 
 		/// Since most programs don't know this in advance, it is often set to 0, which means 'unlimited' or 'permanent'.
 		/// </summary>
 		/// <remarks>
@@ -92,34 +92,23 @@ namespace Lost.PortForwarding
 		/// Since most programs don't know the lifetime in advance, Lost.PortForwarding renew all the portmappings (except the permanents) before they expires. So, developers have to close explicitly those portmappings
 		/// they don't want to remain open for the session.
 		/// </remarks>
-		public int Lifetime 
+		public MappingLifetime Lifetime 
 		{ 
 			get { return _lifetime; }
 			internal set
 			{
-				switch (value)
+				_lifetime = value;
+				_expiration = value.Type switch
 				{
-					case int.MaxValue:
-						LifetimeType = MappingLifetime.Session;
-						_lifetime = 10 * 60; // ten minutes
-						_expiration = DateTime.UtcNow.AddSeconds(_lifetime);;
-						break;
-					case 0:
-						LifetimeType = MappingLifetime.Permanent;
-						_lifetime = 0;
-						_expiration = DateTime.UtcNow;
-						break;
-					default:
-						LifetimeType = MappingLifetime.Manual;
-						_lifetime = value;
-						_expiration = DateTime.UtcNow.AddSeconds(_lifetime);
-						break;
-				}
+					MappingLifetimeType.Session => DateTime.UtcNow.AddMinutes(10),
+					MappingLifetimeType.Permanent => DateTime.UtcNow,
+					_ => DateTime.UtcNow.AddSeconds(_lifetime.Seconds)
+				};
 			} 
 		}
 
 		/// <summary>
-		/// Gets the expiration. The property value is calculated using <see cref="#Lifetime">Lifetime</see> property.
+		/// Gets the expiration. The property value is calculated using <see cref="Lifetime">Lifetime</see> property.
 		/// </summary>
 		public DateTime Expiration
 		{
@@ -127,12 +116,12 @@ namespace Lost.PortForwarding
 			internal set
 			{
 				_expiration = value;
-				_lifetime = (int)(_expiration - DateTime.UtcNow).TotalSeconds;
+				_lifetime = new(_expiration - DateTime.UtcNow);
 			}
 		}
 
 		internal Mapping(Protocol protocol, IPAddress privateIP, int privatePort, int publicPort)
-			: this(protocol, privateIP, privatePort, publicPort, 0, "Lost.PortForwarding")
+			: this(protocol, privateIP, privatePort, publicPort, MappingLifetime.Permanent, "Lost.PortForwarding")
 		{
 		}
 
@@ -145,11 +134,12 @@ namespace Lost.PortForwarding
 		/// <param name="publicPort">The public port.</param>
 		/// <param name="lifetime">The lifetime in seconds.</param>
 		/// <param name="description">The description.</param>
-		public Mapping(Protocol protocol, IPAddress privateIP, int privatePort, int publicPort, int lifetime, string description)
+		public Mapping(Protocol protocol, IPAddress privateIP, int privatePort, int publicPort, MappingLifetime lifetime, string description)
 		{
 			Guard.IsInRange(privatePort, 0, ushort.MaxValue, "privatePort");
+			Guard.IsInRange(privatePort, IPEndPoint.MinPort, IPEndPoint.MaxPort, nameof(privatePort));
 			Guard.IsInRange(publicPort, 0, ushort.MaxValue, "publicPort");
-			Guard.IsInRange(lifetime, 0, int.MaxValue, "lifetime");
+			Guard.IsInRange(publicPort, IPEndPoint.MinPort, IPEndPoint.MaxPort, nameof(publicPort));
 			Guard.IsTrue(protocol == Protocol.Tcp || protocol == Protocol.Udp, "protocol");
 			Guard.IsNotNull(privateIP, "privateIP");
 
@@ -172,7 +162,7 @@ namespace Lost.PortForwarding
 		/// This constructor initializes a Permanent mapping. The description by deafult is "Lost.PortForwarding"
 		/// </remarks>
 		public Mapping(Protocol protocol, int privatePort, int publicPort)
-			: this(protocol, IPAddress.None, privatePort, publicPort, 0, "Lost.PortForwarding")
+			: this(protocol, IPAddress.None, privatePort, publicPort, MappingLifetime.Permanent, "Lost.PortForwarding")
 		{
 		}
 
@@ -187,7 +177,7 @@ namespace Lost.PortForwarding
 		/// This constructor initializes a Permanent mapping.
 		/// </remarks>
 		public Mapping(Protocol protocol, int privatePort, int publicPort, string description)
-			: this(protocol, IPAddress.None, privatePort, publicPort, 0, description)
+			: this(protocol, IPAddress.None, privatePort, publicPort, MappingLifetime.Permanent, description)
 		{
 		}
 
@@ -197,9 +187,9 @@ namespace Lost.PortForwarding
 		/// <param name="protocol">The protocol.</param>
 		/// <param name="privatePort">The private port.</param>
 		/// <param name="publicPort">The public port.</param>
-		/// <param name="lifetime">The lifetime in seconds.</param>
+		/// <param name="lifetime">The lifetime.</param>
 		/// <param name="description">The description.</param>
-		public Mapping(Protocol protocol, int privatePort, int publicPort, int lifetime, string description)
+		public Mapping(Protocol protocol, int privatePort, int publicPort, MappingLifetime lifetime, string description)
 			: this(protocol, IPAddress.None, privatePort, publicPort, lifetime, description)
 		{
 		}
@@ -211,7 +201,7 @@ namespace Lost.PortForwarding
 			Protocol = mapping.Protocol;
 			PublicIP = mapping.PublicIP;
 			PublicPort = mapping.PublicPort;
-			LifetimeType = mapping.LifetimeType;
+			IsForcedSession = mapping.IsForcedSession;
 			Description = mapping.Description;
 			_lifetime = mapping._lifetime;
 			_expiration = mapping._expiration;
@@ -225,14 +215,14 @@ namespace Lost.PortForwarding
 		/// </remarks>
 		public bool IsExpired ()
 		{
-			return LifetimeType != MappingLifetime.Permanent
-				&& LifetimeType != MappingLifetime.ForcedSession 
+			return LifetimeType != MappingLifetimeType.Permanent
+				&& !IsForcedSession
 				&& Expiration < DateTime.UtcNow;
 		}
 
 		internal bool ShoundRenew()
 		{
-			return LifetimeType == MappingLifetime.Session && IsExpired();
+			return LifetimeType == MappingLifetimeType.Session && IsExpired();
 		}
 
 		public override bool Equals(object obj)
@@ -263,12 +253,13 @@ namespace Lost.PortForwarding
 		/// </returns>
 		public override string ToString()
 		{
-			return string.Format("{0} {1} --> {2}:{3} ({4})",
+			return string.Format("{0} {1} --> {2}:{3} ({4} for {5})",
 									Protocol == Protocol.Tcp ? "Tcp" : "Udp",
 									PublicPort,
 									PrivateIP,
 									PrivatePort,
-									Description); 
+									Description,
+									Lifetime);
 		}
 	}
 }
