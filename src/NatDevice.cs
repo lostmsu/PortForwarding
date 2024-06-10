@@ -52,6 +52,11 @@ namespace Lost.PortForwarding
 		/// </summary>
 		public abstract IPAddress LocalAddress { get; }
 
+		/// <summary>
+		/// Occurs when we fail to renew mapping.
+		/// </summary>
+		public event Action<Mapping, Exception> RenewFailed;
+
 		private readonly HashSet<Mapping> _openedMapping = new HashSet<Mapping>();
 		protected DateTime LastSeen { get; private set; }
 
@@ -186,6 +191,7 @@ namespace Lost.PortForwarding
 				{
 					if (task.IsFaulted)
 					{
+						RenewFailed?.Invoke(mapping, task.Exception);
 						NatDiscoverer.TraceSource.LogWarn("Renew {0} failed", mapping);
 					}
 					else
