@@ -7,6 +7,7 @@
 
     <!-- package -->
     <PackageId>Lost.PortForwarding</PackageId>
+    <Version>0.3.0-a7</Version>
     <Authors>Alan McGovern, Ben Motmans, Lucas Ontivero</Authors>
     <Product>Lost.PortForwarding</Product>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -16,7 +17,6 @@
     <Description>.NET Library for port forwarding/port mapping</Description>
     <NeutralLanguage>en</NeutralLanguage>
     <Copyright>Copyright Alan McGovern, Ben Motmans, Lucas Ontivero ©  2006-2014</Copyright>
-    <Version>0</Version>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DebugSymbols>true</DebugSymbols>

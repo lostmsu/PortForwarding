@@ -117,20 +117,20 @@ namespace Lost.PortForwarding
 
 						attempt++;
 						delay *= 2;
-						Thread.Sleep(delay);
+						await Task.Delay(delay);
 					}
 				}
 			}
 			catch (Exception e)
 			{
 				string type = create ? "create" : "delete";
-				string message = String.Format("Failed to {0} portmap (protocol={1}, private port={2})",
+				string message = String.Format("Failed to {0} portmap (protocol={1}, private port={2}): {3}",
 											   type,
 											   mapping.Protocol,
-											   mapping.PrivatePort);
+											   mapping.PrivatePort,
+											   e.Message);
 				NatDiscoverer.TraceSource.LogError(message);
-				var pmpException = e as MappingException;
-				throw new MappingException(message, pmpException);
+				throw new MappingException(message, e);
 			}
 
 			return mapping;
