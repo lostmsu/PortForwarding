@@ -108,12 +108,20 @@ namespace Lost.PortForwarding
 
 				using (var udpClient = new UdpClient())
 				{
-					CreatePortMapListen(udpClient, mapping);
+					await udpClient.SendAsync(buffer, buffer.Length, HostEndPoint).ConfigureAwait(false);
+
+					var acceptTimeout = TimeSpan.FromMilliseconds(delay * Math.Pow(2, PmpConstants.RetryAttempts + 1));
+					var set = PortMapResponseListen(udpClient, mapping, acceptTimeout);
 
 					while (attempt < PmpConstants.RetryAttempts)
 					{
-						await
-							udpClient.SendAsync(buffer, buffer.Length, HostEndPoint);
+						await Task.WhenAny(set, udpClient.SendAsync(buffer, buffer.Length, HostEndPoint)).ConfigureAwait(false);
+
+						if (set.IsCompleted)
+						{
+							await set.ConfigureAwait(false);
+							break;
+						}
 
 						attempt++;
 						delay *= 2;
@@ -136,13 +144,23 @@ namespace Lost.PortForwarding
 			return mapping;
 		}
 
-		private void CreatePortMapListen(UdpClient udpClient, Mapping mapping)
+		async Task<bool> PortMapResponseListen(UdpClient udpClient, Mapping mapping, TimeSpan timeout)
 		{
 			var endPoint = HostEndPoint;
 
+			var timeoutTask = Task.Delay(timeout);
+
 			while (true)
 			{
-				byte[] data = udpClient.Receive(ref endPoint);
+				var receive = udpClient.ReceiveAsync();
+				var result = await Task.WhenAny(receive, timeoutTask).ConfigureAwait(false);
+				if (result == timeoutTask)
+					throw new TimeoutException($"Timed out waiting for response from {HostEndPoint} while creating port mapping for {mapping}");
+
+				if (!receive.Result.RemoteEndPoint.Equals(endPoint))
+					continue;
+
+				byte[] data = receive.Result.Buffer;
 
 				if (data.Length < 16)
 					continue;
@@ -179,14 +197,14 @@ namespace Lost.PortForwarding
 					throw new MappingException(resultCode, errors[resultCode]);
 				}
 
-				if (lifetime == 0) return; //mapping was deleted
+				if (lifetime == 0) return false; //mapping was deleted
 
 				//mapping was created
 				//TODO: verify that the private port+protocol are a match
 				mapping.PublicPort = publicPort;
 				mapping.Protocol = protocol;
 				mapping.Expiration = DateTime.Now.AddSeconds(lifetime);
-				return;
+				return true;
 			}
 		}
 
