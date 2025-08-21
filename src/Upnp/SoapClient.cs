@@ -150,7 +150,7 @@ namespace Lost.PortForwarding
 				int code = Convert.ToInt32(node.GetXmlElementText("errorCode"), CultureInfo.InvariantCulture);
 				string errorMessage = node.GetXmlElementText("errorDescription");
 				NatDiscoverer.TraceSource.LogWarn("Server failed with error: {0} - {1}", code, errorMessage);
-				throw new MappingException(code, errorMessage);
+				throw new MappingException(code, errorMessage + Environment.NewLine + Environment.NewLine + node.OuterXml);
 			}
 
 			return doc;
