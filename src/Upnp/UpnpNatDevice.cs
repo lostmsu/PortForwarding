@@ -29,10 +29,11 @@
 //
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+
+using static Lost.PortForwarding.UpnpConstants;
 
 namespace Lost.PortForwarding
 {
@@ -66,6 +67,8 @@ namespace Lost.PortForwarding
 				.InvokeAsync("GetExternalIPAddress", message.ToXml())
 				.TimeoutAfter(TimeSpan.FromSeconds(4));
 
+			responseData.GetUPnPError()?.Throw();
+
 			var response = new GetExternalIPAddressResponseMessage(responseData, DeviceInfo.ServiceType);
 			return response.ExternalIPAddress;
 		}
@@ -77,46 +80,47 @@ namespace Lost.PortForwarding
 
 			NatDiscoverer.TraceSource.LogInfo("CreatePortMapAsync - Creating port mapping {0}", mapping);
 			bool retry = false;
-			try
-			{
-				var message = new CreatePortMappingRequestMessage(mapping);
-				await _soapClient
-					.InvokeAsync("AddPortMapping", message.ToXml())
-					.TimeoutAfter(TimeSpan.FromSeconds(4));
-				RegisterMapping(mapping);
-			}
-			catch(MappingException me)
-			{
-				switch (me.ErrorCode)
-				{
-					case UpnpConstants.OnlyPermanentLeasesSupported:
-						NatDiscoverer.TraceSource.LogWarn("Only Permanent Leases Supported - There is no warranty it will be closed");
-						mapping.Lifetime = MappingLifetime.Permanent;
-						// We create the mapping anyway. It must be released on shutdown.
-						mapping.IsForcedSession = true;
-						retry = true;
-						break;
-					case UpnpConstants.SamePortValuesRequired:
-						NatDiscoverer.TraceSource.LogWarn("Same Port Values Required - Using internal port {0}", mapping.PrivatePort);
-						mapping.PublicPort = mapping.PrivatePort;
-						retry = true;
-						break;
-					case UpnpConstants.RemoteHostOnlySupportsWildcard:
-						NatDiscoverer.TraceSource.LogWarn("Remote Host Only Supports Wildcard");
-						mapping.PublicIP = IPAddress.None;
-						retry = true;
-						break;
-					case UpnpConstants.ExternalPortOnlySupportsWildcard:
-						NatDiscoverer.TraceSource.LogWarn("External Port Only Supports Wildcard");
-						throw;
-					case UpnpConstants.ConflictInMappingEntry:
-						NatDiscoverer.TraceSource.LogWarn("Conflict with an already existing mapping");
-						throw;
 
-					default:
-						throw;
-				}
+			var message = new CreatePortMappingRequestMessage(mapping);
+			var response = await _soapClient
+				.InvokeAsync("AddPortMapping", message.ToXml())
+				.TimeoutAfter(TimeSpan.FromSeconds(4));
+
+			switch (response.GetUPnPError()?.ErrorCode)
+			{
+				case null:
+					break;
+
+				case OnlyPermanentLeasesSupported:
+					NatDiscoverer.TraceSource.LogWarn("Only Permanent Leases Supported - There is no warranty it will be closed");
+					mapping.Lifetime = MappingLifetime.Permanent;
+					// We create the mapping anyway. It must be released on shutdown.
+					mapping.IsForcedSession = true;
+					retry = true;
+					break;
+				case SamePortValuesRequired:
+					NatDiscoverer.TraceSource.LogWarn("Same Port Values Required - Using internal port {0}", mapping.PrivatePort);
+					mapping.PublicPort = mapping.PrivatePort;
+					retry = true;
+					break;
+				case RemoteHostOnlySupportsWildcard:
+					NatDiscoverer.TraceSource.LogWarn("Remote Host Only Supports Wildcard");
+					mapping.PublicIP = IPAddress.None;
+					retry = true;
+					break;
+				case ExternalPortOnlySupportsWildcard:
+					NatDiscoverer.TraceSource.LogWarn("External Port Only Supports Wildcard");
+					throw response.GetUPnPError();
+				case ConflictInMappingEntry:
+					NatDiscoverer.TraceSource.LogWarn("Conflict with an already existing mapping");
+					throw response.GetUPnPError();
+
+				default:
+					throw response.GetUPnPError();
 			}
+
+			RegisterMapping(mapping);
+
 			if (retry)
 				await CreatePortMapAsync(mapping);
 		}
@@ -129,18 +133,19 @@ namespace Lost.PortForwarding
 			
 			NatDiscoverer.TraceSource.LogInfo("DeletePortMapAsync - Deleteing port mapping {0}", mapping);
 
-			try
+
+			var message = new DeletePortMappingRequestMessage(mapping);
+			var response = await _soapClient
+				.InvokeAsync("DeletePortMapping", message.ToXml())
+				.TimeoutAfter(TimeSpan.FromSeconds(4));
+			var error = response.GetUPnPError();
+			if (error is { ErrorCode: UpnpConstants.NoSuchEntryInArray })
 			{
-				var message = new DeletePortMappingRequestMessage(mapping);
-				await _soapClient
-					.InvokeAsync("DeletePortMapping", message.ToXml())
-					.TimeoutAfter(TimeSpan.FromSeconds(4));
-				UnregisterMapping(mapping);
+				NatDiscoverer.TraceSource.LogWarn("Mapping doesn't exist!");
+				return;
 			}
-			catch (MappingException e)
-			{
-				if(e.ErrorCode != UpnpConstants.NoSuchEntryInArray) throw; 
-			}
+			error?.Throw();
+			UnregisterMapping(mapping);
 		}
 
 		public override async Task<IEnumerable<Mapping>> GetAllMappingsAsync()
@@ -151,46 +156,44 @@ namespace Lost.PortForwarding
 			NatDiscoverer.TraceSource.LogInfo("GetAllMappingsAsync - Getting all mappings");
 			while (true)
 			{
-				try
+				var message = new GetGenericPortMappingEntry(index++);
+
+				var responseData = await _soapClient
+					.InvokeAsync("GetGenericPortMappingEntry", message.ToXml())
+					.TimeoutAfter(TimeSpan.FromSeconds(4));
+
+				var error = responseData.GetUPnPError();
+				if (error is { ErrorCode: SpecifiedArrayIndexInvalid or NoSuchEntryInArray})
 				{
-					var message = new GetGenericPortMappingEntry(index++);
-
-					var responseData = await _soapClient
-						.InvokeAsync("GetGenericPortMappingEntry", message.ToXml())
-						.TimeoutAfter(TimeSpan.FromSeconds(4));
-
-					var responseMessage = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, true);
-
-					IPAddress internalClientIp;
-					if(!IPAddress.TryParse(responseMessage.InternalClient, out internalClientIp))
-					{
-						NatDiscoverer.TraceSource.LogWarn("InternalClient is not an IP address. Mapping ignored!");
-						continue;
-					}
-
-					var mapping = new Mapping(responseMessage.Protocol
-						, internalClientIp
-						, responseMessage.InternalPort
-						, responseMessage.ExternalPort
-						, new(responseMessage.LeaseDuration)
-						, responseMessage.PortMappingDescription);
-					mappings.Add(mapping);
+					NatDiscoverer.TraceSource.LogInfo("No entry at index {0} in array. No more mappings.", index-1);
+					break;
 				}
-				catch (MappingException e)
+
+				if (error is { ErrorCode: InvalidArguments or ActionFailed })
 				{
-					// there are no more mappings
-					if (e.ErrorCode == UpnpConstants.SpecifiedArrayIndexInvalid
-					 || e.ErrorCode == UpnpConstants.NoSuchEntryInArray
-					 // DD-WRT Linux base router (and others probably) fails with 402-InvalidArgument when index is out of range
-					 || e.ErrorCode == UpnpConstants.InvalidArguments
-					 // LINKSYS WRT1900AC AC1900 it returns errocode 501-PAL_UPNP_SOAP_E_ACTION_FAILED
-					 || e.ErrorCode == UpnpConstants.ActionFailed)
-					{
-						NatDiscoverer.TraceSource.LogWarn("Router failed with {0}-{1}. No more mappings is assumed.", e.ErrorCode, e.ErrorText);
-						break; 
-					}
-					throw;
+					// DD-WRT Linux base router (and others probably) fails with 402-InvalidArgument when index is out of range
+					// LINKSYS WRT1900AC AC1900 it returns errocode 501-PAL_UPNP_SOAP_E_ACTION_FAILED
+					NatDiscoverer.TraceSource.LogWarn("Router failed with {0}-{1}. No more mappings is assumed.", error.ErrorCode, error.ErrorText);
+					break;
 				}
+				error?.Throw();
+
+				var responseMessage = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, true);
+
+				IPAddress internalClientIp;
+				if(!IPAddress.TryParse(responseMessage.InternalClient, out internalClientIp))
+				{
+					NatDiscoverer.TraceSource.LogWarn("InternalClient is not an IP address. Mapping ignored!");
+					continue;
+				}
+
+				var mapping = new Mapping(responseMessage.Protocol
+					, internalClientIp
+					, responseMessage.InternalPort
+					, responseMessage.ExternalPort
+					, new(responseMessage.LeaseDuration)
+					, responseMessage.PortMappingDescription);
+				mappings.Add(mapping);
 			}
 
 			return mappings.ToArray();
@@ -203,40 +206,37 @@ namespace Lost.PortForwarding
 
 			NatDiscoverer.TraceSource.LogInfo("GetSpecificMappingAsync - Getting mapping for protocol: {0} port: {1}", Enum.GetName(typeof(Protocol), protocol), publicPort);
 
-			try
+			var message = new GetSpecificPortMappingEntryRequestMessage(protocol, publicPort);
+			var responseData = await _soapClient
+				.InvokeAsync("GetSpecificPortMappingEntry", message.ToXml())
+				.TimeoutAfter(TimeSpan.FromSeconds(4));
+
+			var error = responseData.GetUPnPError();
+			if (error is { ErrorCode: SpecifiedArrayIndexInvalid or NoSuchEntryInArray })
 			{
-				var message = new GetSpecificPortMappingEntryRequestMessage(protocol, publicPort);
-				var responseData = await _soapClient
-					.InvokeAsync("GetSpecificPortMappingEntry", message.ToXml())
-					.TimeoutAfter(TimeSpan.FromSeconds(4));
-
-				var messageResponse = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, false);
-
-				if (messageResponse.Protocol != protocol)
-					NatDiscoverer.TraceSource.LogWarn("Router responded to a protocol {0} query with a protocol {1} answer, work around applied.", protocol, messageResponse.Protocol);
-
-				return new Mapping(protocol
-					, IPAddress.Parse(messageResponse.InternalClient)
-					, messageResponse.InternalPort
-					, publicPort // messageResponse.ExternalPort is short.MaxValue
-					, new(messageResponse.LeaseDuration)
-					, messageResponse.PortMappingDescription);
+				return null;
 			}
-			catch (MappingException e)
+
+			if (error is { ErrorCode: InvalidArguments or ActionFailed })
 			{
-				// there are no more mappings
-				if (e.ErrorCode == UpnpConstants.SpecifiedArrayIndexInvalid
-				 || e.ErrorCode == UpnpConstants.NoSuchEntryInArray
-					// DD-WRT Linux base router (and others probably) fails with 402-InvalidArgument when index is out of range
-				 || e.ErrorCode == UpnpConstants.InvalidArguments
-					// LINKSYS WRT1900AC AC1900 it returns errocode 501-PAL_UPNP_SOAP_E_ACTION_FAILED
-				 || e.ErrorCode == UpnpConstants.ActionFailed)
-				{
-					NatDiscoverer.TraceSource.LogWarn("Router failed with {0}-{1}. No more mappings is assumed.", e.ErrorCode, e.ErrorText);
-					return null;
-				}
-				throw;
+				// DD-WRT Linux base router (and others probably) fails with 402-InvalidArgument when index is out of range
+				// LINKSYS WRT1900AC AC1900 it returns errocode 501-PAL_UPNP_SOAP_E_ACTION_FAILED
+				NatDiscoverer.TraceSource.LogWarn("Router failed with {0}-{1}. Assuming mapping does not exist.", error.ErrorCode, error.ErrorText);
+				return null;
 			}
+			error?.Throw();
+
+			var messageResponse = new GetPortMappingEntryResponseMessage(responseData, DeviceInfo.ServiceType, false);
+
+			if (messageResponse.Protocol != protocol)
+				NatDiscoverer.TraceSource.LogWarn("Router responded to a protocol {0} query with a protocol {1} answer, work around applied.", protocol, messageResponse.Protocol);
+
+			return new Mapping(protocol
+				, IPAddress.Parse(messageResponse.InternalClient)
+				, messageResponse.InternalPort
+				, publicPort // messageResponse.ExternalPort is short.MaxValue
+				, new(messageResponse.LeaseDuration)
+				, messageResponse.PortMappingDescription);
 		}
 
 		public override string ToString()

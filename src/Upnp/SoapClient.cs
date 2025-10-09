@@ -1,4 +1,5 @@
-﻿//
+﻿#nullable enable
+//
 // Authors:
 //   Lucas Ontivero lucasontivero@gmail.com
 //
@@ -43,12 +44,17 @@ namespace Lost.PortForwarding
 
 		public SoapClient(Uri url, string serviceType)
 		{
-			_url = url;
-			_serviceType = serviceType;
+			_url = url ?? throw new ArgumentNullException(nameof(url));
+			_serviceType = serviceType ?? throw new ArgumentNullException(nameof(serviceType));
 		}
 
 		public async Task<XmlDocument> InvokeAsync(string operationName, IDictionary<string, object> args)
 		{
+			if (string.IsNullOrEmpty(operationName))
+				throw new ArgumentNullException(nameof(operationName));
+			if (args is null)
+				throw new ArgumentNullException(nameof(args));
+
 			NatDiscoverer.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "SOAPACTION: **{0}** url:{1}", operationName,
 												 _url);
 			byte[] messageBody = BuildMessageBody(operationName, args);
@@ -73,16 +79,15 @@ namespace Lost.PortForwarding
 									? reader.ReadAsMany((int) contentLength)
 									: reader.ReadToEnd();
 
-				var responseXml = GetXmlDocument(responseBody);
-
 				response.Close();
-				return responseXml;
+
+				return GetXmlDocument(responseBody);
 			}
 		}
 
 		private static async Task<WebResponse> GetWebResponse(WebRequest request)
 		{
-			WebResponse response;
+			WebResponse? response;
 			try
 			{
 				response = await request.GetResponseAsync();
@@ -121,7 +126,7 @@ namespace Lost.PortForwarding
 			sb.AppendLine("	  <u:" + operationName + " xmlns:u=\"" + _serviceType + "\">");
 			foreach (var a in args)
 			{
-				sb.AppendLine("		 <" + a.Key + ">" + Convert.ToString(a.Value, CultureInfo.InvariantCulture) +
+				sb.AppendLine("		 <" + a.Key + ">" + FormatValue(a.Value) +
 							  "</" + a.Key + ">");
 			}
 			sb.AppendLine("	  </u:" + operationName + ">");
@@ -129,31 +134,47 @@ namespace Lost.PortForwarding
 			sb.Append("</s:Envelope>\r\n\r\n");
 			string requestBody = sb.ToString();
 
-			byte[] messageBody = Encoding.UTF8.GetBytes(requestBody);
-			return messageBody;
+			return Encoding.UTF8.GetBytes(requestBody);
 		}
+
+		static string FormatValue(object value)
+			=> value switch
+			{
+				MappingLifetime { Type: MappingLifetimeType.Permanent } => "0",
+				MappingLifetime { Type: MappingLifetimeType.Manual, Seconds: var seconds }
+					=> Convert.ToString(seconds, CultureInfo.InvariantCulture),
+				_ => Convert.ToString(value, CultureInfo.InvariantCulture),
+			};
 
 		private XmlDocument GetXmlDocument(string response)
 		{
-			XmlNode node;
 			var doc = new XmlDocument();
 			doc.LoadXml(response);
+			return doc;
+		}
 
+		public static MappingException? GetException(XmlDocument doc)
+		{
 			var nsm = new XmlNamespaceManager(doc.NameTable);
 
 			// Error messages should be found under this namespace
 			nsm.AddNamespace("errorNs", "urn:schemas-upnp-org:control-1-0");
 
-			// Check to see if we have a fault code message.
-			if ((node = doc.SelectSingleNode("//errorNs:UPnPError", nsm)) != null)
+			if (doc.SelectSingleNode("//errorNs:UPnPError", nsm) is XmlNode node)
 			{
 				int code = Convert.ToInt32(node.GetXmlElementText("errorCode"), CultureInfo.InvariantCulture);
 				string errorMessage = node.GetXmlElementText("errorDescription");
 				NatDiscoverer.TraceSource.LogWarn("Server failed with error: {0} - {1}", code, errorMessage);
-				throw new MappingException(code, errorMessage + Environment.NewLine + Environment.NewLine + node.OuterXml);
+				return new(code, errorMessage + Environment.NewLine + Environment.NewLine + node.OuterXml);
 			}
 
-			return doc;
+			return null;
 		}
+	}
+
+	static class SoapResponseExtensions
+	{
+		public static MappingException? GetUPnPError(this XmlDocument doc)
+			=> SoapClient.GetException(doc);
 	}
 }

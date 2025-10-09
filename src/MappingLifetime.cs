@@ -35,6 +35,7 @@ public readonly struct MappingLifetime
 	/// <summary>
 	/// Keeps mapping alive until program exits (behavior undefined if program crashes).
 	/// </summary>
+	[Obsolete("Not supported on UPnP")]
 	public static MappingLifetime Session => new(int.MaxValue);
 	/// <summary>
 	/// Mapping lifetime is permanent. It will stay open until explicitly deleted.

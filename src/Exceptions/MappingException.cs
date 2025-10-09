@@ -27,6 +27,7 @@
 //
 
 using System;
+using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 
@@ -47,6 +48,9 @@ namespace Lost.PortForwarding
 		/// 
 		/// </summary>
 		public string ErrorText { get; private set; }
+
+		[DebuggerHidden]
+		internal void Throw() => throw this;
 
 		#region Constructors
 

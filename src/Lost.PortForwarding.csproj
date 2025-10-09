@@ -7,7 +7,7 @@
 
     <!-- package -->
     <PackageId>Lost.PortForwarding</PackageId>
-    <Version>0.3.0-a9</Version>
+    <Version>0.4.0</Version>
     <Authors>Alan McGovern, Ben Motmans, Lucas Ontivero</Authors>
     <Product>Lost.PortForwarding</Product>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
