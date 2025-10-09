@@ -172,7 +172,7 @@ namespace Lost.PortForwarding
 
 		internal async Task RenewMappings()
 		{
-			var mappings = _openedMapping.Where(x => x.ShoundRenew());
+			var mappings = _openedMapping.Where(x => x.ShouldRenew());
 			foreach (var mapping in mappings.ToArray())
 			{
 				var m = mapping;

@@ -100,7 +100,7 @@ namespace Lost.PortForwarding
 				_lifetime = value;
 				_expiration = value.Type switch
 				{
-					MappingLifetimeType.Session => DateTime.UtcNow.AddMinutes(10),
+					MappingLifetimeType.Session => DateTime.UtcNow.AddSeconds(NatDiscoverer.RenewPeriod.TotalSeconds * 0.95),
 					MappingLifetimeType.Permanent => DateTime.UtcNow,
 					_ => DateTime.UtcNow.AddSeconds(_lifetime.Seconds)
 				};
@@ -220,7 +220,7 @@ namespace Lost.PortForwarding
 				&& Expiration < DateTime.UtcNow;
 		}
 
-		internal bool ShoundRenew()
+		internal bool ShouldRenew()
 		{
 			return LifetimeType == MappingLifetimeType.Session && IsExpired();
 		}

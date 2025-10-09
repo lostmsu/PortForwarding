@@ -143,6 +143,9 @@ namespace Lost.PortForwarding
 				MappingLifetime { Type: MappingLifetimeType.Permanent } => "0",
 				MappingLifetime { Type: MappingLifetimeType.Manual, Seconds: var seconds }
 					=> Convert.ToString(seconds, CultureInfo.InvariantCulture),
+				MappingLifetime { Type: MappingLifetimeType.Session }
+					=> Convert.ToString((int)(NatDiscoverer.RenewPeriod.TotalSeconds * 3.5),
+										CultureInfo.InvariantCulture),
 				_ => Convert.ToString(value, CultureInfo.InvariantCulture),
 			};
 
