@@ -53,6 +53,7 @@ namespace Lost.PortForwarding
 
 		internal PmpNatDevice(IPAddress hostEndPointAddress, IPAddress localAddress, IPAddress publicAddress)
 		{
+			PortMapper = PortMapper.Pmp;
 			_hostEndPoint = new IPEndPoint(hostEndPointAddress, PmpConstants.ServerPort);
 			_localAddress = localAddress;
 			_publicAddress = publicAddress;

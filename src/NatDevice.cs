@@ -52,6 +52,8 @@ namespace Lost.PortForwarding
 		/// </summary>
 		public abstract IPAddress LocalAddress { get; }
 
+		protected internal PortMapper PortMapper { get; protected set; }
+
 		/// <summary>
 		/// Occurs when we fail to renew mapping.
 		/// </summary>

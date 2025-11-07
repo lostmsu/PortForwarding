@@ -54,6 +54,7 @@ namespace Lost.PortForwarding
 
 		internal UpnpNatDevice(UpnpNatDeviceInfo deviceInfo)
 		{
+			PortMapper = PortMapper.Upnp;
 			Touch();
 			DeviceInfo = deviceInfo;
 			_soapClient = new SoapClient(DeviceInfo.ServiceControlUri, DeviceInfo.ServiceType);
