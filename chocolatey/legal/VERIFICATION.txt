@@ -1,0 +1,8 @@
+VERIFICATION
+Verification is intended to assist the Chocolatey moderators and community in verifying that this package's contents are trustworthy.
+
+1. Download the release artifact from the official source:
+   https://github.com/lostmsu/PortForwarding/releases/download/v0.4.2/PortOpen.exe
+2. Verify the checksum:
+   - Checksum type: sha256
+   - Checksum: 2B3CA94616214713F217FD1D1B92952D6F78B934616417E79452C1862D12D7E2

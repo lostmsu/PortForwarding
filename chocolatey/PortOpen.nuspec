@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>portopen</id>
+    <version>0.4.2</version>
+    <title>PortOpen</title>
+    <authors>Victor Nova (lostmsu)</authors>
+    <owners>Victor Nova (lostmsu)</owners>
+    <licenseUrl>https://raw.githubusercontent.com/lostmsu/PortForwarding/lost/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/lostmsu/PortForwarding</projectUrl>
+    <packageSourceUrl>https://github.com/lostmsu/PortForwarding</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/lostmsu/PortForwarding/issues</bugTrackerUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>Command-line tool to open ports via UPnP or PMP.</summary>
+    <description>PortOpen is a simple command-line tool that opens TCP or UDP ports on NAT devices using UPnP or PMP. It supports configurable lease durations and parallel mapping against both protocols.</description>
+    <releaseNotes>PortOpen 0.4.2 packaged from GitHub release.</releaseNotes>
+    <tags>port-forwarding nat upnp pmp networking cli</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+    <file src="legal\**" target="legal" />
+  </files>
+</package>
